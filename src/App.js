@@ -1,23 +1,22 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useEffect } from "react";
+import FunkyTime from '@bit/dewofyouryouth.funkyst.funkytime'
+
+export const getGreeting = async () => {
+  const greeting = await {greeting: "Hi there"}
+  return greeting
+}
 
 function App() {
+  const [greeting, setGreeting] = useState("Hello")
+  useEffect(() => {
+    getGreeting().then(res => setGreeting(res.greeting))
+  }, [greeting])
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+
+      <h1>{greeting}!</h1>
+      <FunkyTime />
     </div>
   );
 }
