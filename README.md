@@ -1,70 +1,125 @@
-# Getting Started with Create React App
+# Testing React Async Components (Part One)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Available Scripts
+## Using act()
+I have been asked to give guidance as to how one can test a component with an asynchronous hook (meaning: promises, the most common example of a component with an asynchronous hook  would be a component that makes a call to an API to fetch data and display it). Here I will attempt to give such guidance.
 
-In the project directory, you can run:
+The problem is pretty straightforward. When the component is mounted, it doesn’t yet know what will be returned, so how do you get your test to wait until it does? For example: let's say I have a simple React component (Greeting). The component returns a greeting via an asynchronous state change like an API call. Like this:
 
-### `npm start`
+```
+import { useState, useEffect } from "react";
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+// a promise that fetches a greeting
+export const getGreeting = async () => {
+  const greeting = await {greeting: "Hi there"}
+  return greeting
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+function Greeting() {
+  const [greeting, setGreeting] = useState("Hello")
+  useEffect(() => {
+    getGreeting().then(res => setGreeting(res))
+  }, [greeting])
 
-### `npm test`
+  return (
+    <div>
+      <h1>{greeting}!</h1>
+    </div>
+  );
+}
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+export default Greeting;
+```
 
-### `npm run build`
+If we were to run a test like this in Greeting.test.js  - to see if the greeting “Hi There!” is in the document  like this…
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+import { render, screen } from '@testing-library/react';
+import Greeting from './Greeting';
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+describe("Greeting", () => {
+  it("Greets you with 'Hi There!'", () => {
+    render(<Greeting />)
+    // test if the words "Hi There!" are in the document.
+   expect(screen.getByText(/Hi There!/i)).toBeInTheDocument()
+  })
+})
+```
 
-### `npm run eject`
+…it would fail, because, when the component loads, the component still has “Hello!” as the greeting and will not have a “Hi there!” until after the promise is returned. Something like this would be returned.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```
+FAIL src/Greeting.test.js
+Greeting
+    ✕ loads a greeting message (46 ms)
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+  ● Greeting › Greets you with 'Hi There!'
+  
+    TestingLibraryElementError: Unable to find an element with the text: /Hi There!/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+    <body>
+      <div>
+        <h1>
+          Hello
+          !
+        </h1>
+      </div>
+    </body>
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+      13 |     render(<Greeting />)
+      14 |   //  await act(async () => render(<Greeting />));
+    > 15 |    expect(screen.getByText(/Hi There!/i)).toBeInTheDocument()
+         |                  ^
+      16 |   })
+      17 | })
+```
 
-## Learn More
+The simplest solution is to use the “act” function from the react testing library. React describes the act function as follows: 
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+> act()
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+> When writing UI tests, tasks like rendering, user events, or data fetching can be considered as “units” of interaction with a user interface. react-dom/test-utils provides a helper called act() that makes sure all updates related to these “units” have been processed and applied to the DOM before you make any assertions.
 
-### Code Splitting
+```
+act(() => {
+  // render components
+});
+// make assertions
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Source: [react testing recipes](https://reactjs.org/docs/testing-recipes.html#act)
+BTW, this link with testing recipes is your “go to” for… well… basic testing recipes. 
 
-### Analyzing the Bundle Size
+If we apply that to our example. We will get something like this.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```
+import { render, screen } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
+import Greeting from './Greeting';
 
-### Making a Progressive Web App
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+describe("Greeting", () => {
+  it("Greets you with 'Hi There!'", async () => {
+   await act(async () => render(<Greeting />));
+   expect(screen.getByText(/Hi There!/i)).toBeInTheDocument()
+  })
+})
 
-### Advanced Configuration
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+This will pass:
 
-### Deployment
+```
+ PASS  src/Greeting.test.js
+  Greeting
+    ✓ Greets you with 'Hi There!' (36 ms)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        1.27 s
+Ran all test suites related to changed files.
+```
 
-### `npm run build` fails to minify
+LMK if this clears things up.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
